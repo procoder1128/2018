@@ -1,0 +1,136 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Comphistory;
+use App\Statistic;
+use App\TipResult;
+use App\User;
+use Detection\MobileDetect;
+use Illuminate\Http\Request;
+
+class AdminController extends Controller
+{
+
+
+    public function index(Request $request){
+
+        $path = $request->getPathInfo();
+        $detect = new \Mobile_Detect();
+
+
+
+        if ($detect->isMobile()){
+            return view("mobile.admin.adminPage", ["path" => $path]);
+         }
+         return view("admin.adminPage", ["path" => $path]);
+    }
+
+
+
+
+    public function start(){
+        $response = array('code'=>-1, 'message'=>'');
+
+
+            $faq = Comphistory::where('isclosed', 'ready')->first();
+
+
+
+            if ($faq) {
+
+                if (Comphistory::where('isclosed', 'ready')->update(['isclosed' => 'opened'])) {
+
+                    $response['message'] = "Success";
+                    $response['code'] = 0;
+
+                } else {
+                    $response['message'] = "Failed to update status";
+                }
+
+            } else {
+                $response['message'] = "No ready comp";
+            }
+
+
+
+            return response()->json($response, 200);
+
+         }
+
+
+
+
+    public function close(){
+        $response = array('code'=>-1, 'message'=>'');
+
+
+        $faq = Comphistory::where('isclosed', 'opened')->first();
+        if ($faq) {
+
+            if (Comphistory::where('isclosed', 'opened')->update(['isclosed' => 'Closed'])) {
+
+                $response['message'] = "Success";
+                $response['code'] = 0;
+
+            } else {
+                $response['message'] = "Failed to update status";
+            }
+
+        } else {
+            $response['message'] = "No open comp";
+        }
+
+
+
+        return response()->json($response, 200);
+
+    }
+
+
+
+
+
+    function winners(){
+
+        $comp_start = Comphistory::select(['comp_start_day'])->where('isclosed', 'Closed')->orderBy('time', 'desc')->take(10)->get();
+        if ($comp_start){
+            $comp_start_days = $comp_start;
+
+        }else{
+            $comp_start_days = array();
+        }
+
+
+        $winners = array();
+        $i = 0;
+
+
+        foreach ($comp_start_days as $comp_start_day){
+
+            $winner = Statistic::select(['name', 'prize'])->where('comp_start_day', $comp_start_day->comp_start_day)->where('prize', '<>', 0)->orderBy('odds', 'desc')->first();
+            $email = User::select(['email'])->where('name', $winner['name'])->first();
+            if ($email['email'] == null) continue;
+            $winners[$i]['email'] = $email['email'];
+            $winners[$i]['prize'] = $winner['prize'];
+            $winners[$i]['date'] = $comp_start_day->comp_start_day;
+            $i++;
+        }
+
+        $detect = new \Mobile_Detect();
+        if ($detect->isMobile())
+            return view('mobile.admin.winners', ['winners' => $winners]);
+        return view('admin.winners', ['winners' => $winners]);
+
+    }
+
+
+
+
+
+
+
+
+
+
+}
